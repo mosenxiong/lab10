@@ -1,28 +1,200 @@
 ---
-title: ""
-author: ""
+title: "lab10"
+author: "Senxiong Mo"
 format:
   html:
     embed-resources: true
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
 ```{r}
-1 + 1
+library(RSQLite)
+library(DBI)
 ```
 
-You can add options to executable code like this
-
 ```{r}
-#| echo: false
-2 * 2
+con <- dbConnect(SQLite(), ":memory:")
+
+actor <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/actor.csv")
+rental <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/rental.csv")
+customer <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/customer.csv")
+payment <- read.csv("https://raw.githubusercontent.com/ivanceras/sakila/master/csv-sakila-db/payment_p2007_01.csv")
+
+dbWriteTable(con, "actor", actor)
+dbWriteTable(con, "rental", rental)
+dbWriteTable(con, "customer", customer)
+dbWriteTable(con, "payment", payment)
+
+dbListTables(con)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+dbGetQuery(con,"
+           PRAGMA table_info(actor) ")
+```
+
+
+```{sql, connection=con, output.var= "x1"}
+PRAGMA table_info(con)
+```
+
+
+## Exercise 1
+```{r}
+dbGetQuery(con,"SELECT   actor_id, first_name, last_name 
+           FROM    actor 
+           ORDER by last_name, first_name LIMIT 15 ")
+```
+
+## Exercise 2
+```{r}
+dbGetQuery(con,"
+SELECT   actor_id, first_name, last_name
+FROM    actor
+WHERE last_name IN ('WILLIAMS', 'DAVIS')
+ORDER BY last_name
+")
+```
+
+## Exercise 3
+```{r}
+dbGetQuery(con,"
+      PRAGMA table_info(rental)")
+```
+
+```{r}
+dbGetQuery(con,"
+SELECT DISTINCT customer_id, rental_date
+FROM  rental
+WHERE date(rental_date) = '2005-07-05'")
+```
+
+## Exercise 4
+
+# Exercise 4.1
+```{r}
+dbGetQuery(con,"
+SELECT *
+FROM payment
+WHERE amount IN (1.99, 7.99, 9.99)
+LIMIT 10
+  ")
+```
+
+# Exercise 4.2
+```{r}
+dbGetQuery(con,"
+SELECT *
+FROM payment
+WHERE amount > 5
+LIMIT 10
+")
+
+dbGetQuery(con,"
+SELECT *
+FROM payment
+WHERE amount > 5   AND amount < 8
+LIMIT 10
+")
+```
+
+## Exercise 5
+```{r}
+dbGetQuery(con,"
+SELECT c.customer_id, c.last_name, p.payment_id, p.amount
+FROM customer AS c INNER JOIN payment AS p
+  ON c.customer_id = p.customer_id
+ WHERE c.last_name == 'DAVIS' ")
+```
+
+## Exercise 6
+
+# Exercise 6.1
+```{r}
+dbGetQuery(con,"
+SELECT  COUNT(*) AS count
+FROM  rental")
+```
+
+# Exercise 6.2
+```{r}
+dbGetQuery(con,"
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+LIMIT 8 ")
+```
+
+
+# Exercise 6.3
+```{r}
+dbGetQuery(con,"
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+ORDER BY count DESC
+LIMIT 8")
+```
+
+
+# Exercise 6.4
+```{r}
+dbGetQuery(con,"
+SELECT  customer_id, COUNT(*) AS count
+FROM  rental
+GROUP BY customer_id
+HAVING count >= 40
+ORDER BY count DESC
+LIMIT 8")
+```
+
+
+## Exercise 7
+```{r}
+dbGetQuery(con,"
+SELECT MAX(amount) AS maxpayment,
+MIN(amount) AS minpayment,
+AVG(amount) AS avgpayment,
+SUM(amount) AS sumpayment
+FROM payment")
+```
+
+# Exercise 7.1
+```{r}
+dbGetQuery(con,"
+SELECT customer_id,
+MAX(amount) AS maxpayment,
+MIN(amount) AS minpayment,
+AVG(amount) AS avgpayment,
+SUM(amount) AS sumpayment
+FROM payment
+GROUP BY customer_id
+LIMIT 5")
+```
+
+# Exercise 7.2
+```{r}
+dbGetQuery(con,"
+SELECT customer_id,
+COUNT(*)    AS  N,
+MAX(amount) AS maxpayment,
+MIN(amount) AS minpayment,
+AVG(amount) AS avgpayment,
+SUM(amount) AS sumpayment
+FROM payment
+GROUP BY customer_id 
+HAVING N>5")  
+```
+
+## Cleanup
+```{r}
+dbDisconnect(con)
+```
+
+
+
+
+
+
+
+
